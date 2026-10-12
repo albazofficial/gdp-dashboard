@@ -3,6 +3,21 @@ Global GDP Macroeconomic Intelligence Platform.
 Streamlit Controller consuming modular domain engines.
 """
 
+import sys
+from pathlib import Path
+
+# Force Python path to include project root for Streamlit Cloud
+sys.path.insert(0, str(Path(__file__).parent))
+
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.express as px
+
+# Import our new modular core engines
+from src.pipeline.loader import load_and_transform_gdp_data
+from src.core.metrics import calculate_cagr, calculate_yoy_growth, calculate_volatility
+
 from pathlib import Path
 import streamlit as st
 import pandas as pd
