@@ -51,3 +51,5 @@ An interactive, high-performance macroeconomic data analytics platform for longi
 ## 📄 License
 
 Distributed under the Apache License 2.0. See LICENSE for details.
+---
+> *Note: Maintained actively for macro-economic analysis and exploratory data science workflows.
