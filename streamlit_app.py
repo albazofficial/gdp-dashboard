@@ -46,6 +46,9 @@ try:
 except Exception as err:
     st.error(f"Runtime Engine Failure: {err}")
     st.stop()
+    
+# TODO: Implement robust try-except wrapper for dataset loading
+
 
 # Header
 st.title("🌍 Global GDP Macroeconomic Intelligence Platform")
