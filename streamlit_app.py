@@ -1,61 +1,42 @@
+"""
+Global GDP Macroeconomic Intelligence Platform.
+Streamlit Controller consuming modular domain engines.
+"""
+
+from pathlib import Path
 import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-from pathlib import Path
 
-# Page Configuration
+# Import our new modular core engines
+from src.pipeline.loader import load_and_transform_gdp_data
+from src.core.metrics import calculate_cagr, calculate_yoy_growth, calculate_volatility
+
+# Page Setup
 st.set_page_config(
     page_title="Global GDP Analytics Engine",
     page_icon="🌍",
     layout="wide"
 )
 
-@st.cache_data(ttl="1d")
-def load_and_transform_gdp_data(filepath: Path) -> pd.DataFrame:
-    """
-    Loads raw World Bank GDP data and melts year columns into a normalized time-series dataframe.
-    """
-    if not filepath.exists():
-        raise FileNotFoundError(f"Data file not found at: {filepath}")
-
-    raw_df = pd.read_csv(filepath)
-    
-    # Identify year columns (1960 to 2022)
-    year_columns = [col for col in raw_df.columns if col.isdigit()]
-    
-    # Normalized melting
-    melted_df = raw_df.melt(
-        id_vars=['Country Name', 'Country Code'],
-        value_vars=year_columns,
-        var_name='Year',
-        value_name='GDP'
-    )
-    
-    melted_df['Year'] = pd.to_numeric(melted_df['Year'], errors='coerce')
-    melted_df['GDP'] = pd.to_numeric(melted_df['GDP'], errors='coerce')
-    
-    return melted_df
-
-def calculate_cagr(start_val: float, end_val: float, num_years: int) -> float:
-    """Calculates Compound Annual Growth Rate (CAGR)."""
-    if num_years <= 0 or start_val <= 0 or pd.isna(start_val) or pd.isna(end_val):
-        return np.nan
-    return ((end_val / start_val) ** (1 / num_years)) - 1
-
-# Load Data
 DATA_PATH = Path(__file__).parent / 'data/gdp_data.csv'
+
+@st.cache_data(ttl="1d", show_spinner="Normalizing macroeconomic records...")
+def get_dataset() -> pd.DataFrame:
+    return load_and_transform_gdp_data(DATA_PATH)
+
 try:
-    gdp_df = load_and_transform_gdp_data(DATA_PATH)
-except Exception as e:
-    st.error(f"Failed to load dataset: {e}")
+    gdp_df = get_dataset()
+except Exception as err:
+    st.error(f"Runtime Engine Failure: {err}")
     st.stop()
 
 # Header
 st.title("🌍 Global GDP Macroeconomic Intelligence Platform")
-st.caption("Engineered time-series analysis & comparative macroeconomic insights (World Bank Data 1960–2022)")
+st.caption("Engineered longitudinal econometric profiling (World Bank Dataset 1960–2022)")
 
-# Sidebar Controls
+# Sidebar Filter Controls
 st.sidebar.header("Filter & Controls")
 
 min_year = int(gdp_df['Year'].min())
@@ -68,12 +49,12 @@ from_year, to_year = st.sidebar.slider(
     value=(1990, max_year)
 )
 
-all_countries = sorted(gdp_df['Country Name'].dropna().unique())
+all_countries = sorted(gdp_df['Country Name'].unique())
 default_selection = ['United States', 'China', 'Germany', 'Japan', 'United Kingdom', 'Egypt, Arab Rep.']
 valid_defaults = [c for c in default_selection if c in all_countries]
 
 selected_countries = st.sidebar.multiselect(
-    "Select Nations for Comparison",
+    "Select Benchmark Nations",
     options=all_countries,
     default=valid_defaults
 )
@@ -82,7 +63,7 @@ if not selected_countries:
     st.warning("⚠️ Please select at least one nation from the sidebar.")
     st.stop()
 
-# Filter Data
+# Filter Query
 filtered_df = gdp_df[
     (gdp_df['Country Name'].isin(selected_countries)) &
     (gdp_df['Year'] >= from_year) &
@@ -90,7 +71,7 @@ filtered_df = gdp_df[
 ]
 
 # Tabs Organization
-tab_trends, tab_comparison, tab_table = st.tabs(["📈 Growth & Trajectory", "📊 Comparative Metrics", "📋 Raw Data"])
+tab_trends, tab_comparison, tab_table = st.tabs(["📈 Growth & Trajectory", "📊 Comparative Delta", "📋 Raw Ledger"])
 
 with tab_trends:
     st.subheader("Historical GDP Trajectory (Current US$)")
@@ -103,17 +84,16 @@ with tab_trends:
         labels={'GDP': 'GDP (USD)', 'Year': 'Year'},
         template="plotly_dark"
     )
-    fig.update_layout(hovermode="x unified", legend=dict(orientation="h", y=-0.2))
+    fig.update_layout(hovermode="x unified", legend=dict(orientation="h", y=-0.25))
     st.plotly_chart(fig, use_container_width=True)
 
 with tab_comparison:
     st.subheader(f"Macroeconomic Delta Summary ({from_year} vs {to_year})")
-    
     num_years = to_year - from_year
     cols = st.columns(min(len(selected_countries), 4))
     
     for idx, country in enumerate(selected_countries):
-        country_data = gdp_df[gdp_df['Country Name'] == country]
+        country_data = gdp_df[gdp_df['Country Name'] == country].sort_values('Year')
         
         start_row = country_data[country_data['Year'] == from_year]
         end_row = country_data[country_data['Year'] == to_year]
@@ -129,8 +109,8 @@ with tab_comparison:
             st.metric(label=country, value=display_val, delta=cagr_delta)
 
 with tab_table:
-    st.subheader("Tabular Dataset Exploration")
+    st.subheader("Normalized Time-Series Ledger")
     st.dataframe(
         filtered_df.sort_values(by=['Year', 'GDP'], ascending=[False, False]),
         use_container_width=True
-)
+    )
